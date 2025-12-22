@@ -14,3 +14,6 @@ nele possui o Guard do projeto e as definições dos tipos
 
 **gcc -std=c11 main.c -Iinclude -o main**
 
+além disso, example_code contem um exemplo de entrada **in.txt** que apos a compilação deve ser executado assim:
+
+**./main < in.txt**
