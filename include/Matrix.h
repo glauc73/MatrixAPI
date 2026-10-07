@@ -4,8 +4,6 @@
 #include <stdio.h>
 
 
-
-
 #ifndef _MATRIX_INT_
     #define _MATRIX_INT_
     #undef GENERICS_NAME

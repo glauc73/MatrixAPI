@@ -40,11 +40,13 @@ typedef struct MATRIX_TYPE{
     void (*print)(struct MATRIX_TYPE*);
     void (*hstack)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
     void (*apply)(struct MATRIX_TYPE**, GENERICS_TYPE (*)(GENERICS_TYPE, void*), void*);
+    void (*transp)(struct MATRIX_TYPE**, struct MATRIX_TYPE*);
+
     GENERICS_TYPE (*det)(struct MATRIX_TYPE*);
 
     #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_) //metodos que só fazem sentido para double
     void (*rref)(struct MATRIX_TYPE*);
-    int (*inv)(struct MATRIX_TYPE**);
+    int (*inv)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
     #endif
 
     #if !defined(__INTELLISENSE__) && !defined(__clangd__) //Atributos privados
@@ -77,9 +79,11 @@ static inline void CONCAT(delete_, MATRIX_TYPE)(MATRIX_TYPE** self){ //destrói 
 
 //copia a matriz B para self
 static inline void CONCAT(copy_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* B){
-    if((*self)->rows != B->rows || (*self)->cols != B->cols){
-        printf("Matrizes precisam ter dimensões iguais para serem copiadas!\n");
-        return;
+    if(!self || !*self || !B) return;
+
+    if((*self)->rows != B->rows || (*self)->cols != B->cols){   
+        (*self)->free(self);
+        *self = NEW_MATRIX_TYPE(B->rows, B->cols);
     } 
     //como data aponta para um bloco contiguo, memcpy copia tudo de uma vez
     memcpy((*self)->data, B->data, B->rows * B->cols * sizeof(GENERICS_TYPE));
@@ -146,7 +150,7 @@ static inline void CONCAT(mul_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         return;
     }
     
-    MATRIX_TYPE* TMP = NEW_MATRIX_TYPE((*self)->rows, (*self)->cols);
+    MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, B->cols);
 
     //aplica o algoritmo de multiplicação de matrizes;
     for(size_t i = 0; i < TMP->rows; i++){
@@ -175,6 +179,20 @@ static inline void CONCAT(identity_, MATRIX_TYPE)(MATRIX_TYPE* self){
     self->det_cache = 1;
 }
 
+static inline void CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A){
+    if(!self || !*self || !A) return;
+    MATRIX_TYPE* tmp = NEW_MATRIX_TYPE(A->cols, A->rows);
+
+    for(int i = 0; i < A->rows; i++){
+        for(int j = 0; j < A->cols; j++){
+            tmp->at[j][i] = A->at[i][j];
+        }
+    }
+    (*self)->cpy(self, tmp);
+    (*self)->was_modified = A->was_modified;
+    tmp->free(&tmp);
+}
+
 static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, uint16_t n){
     if(!self || !A){
         printf("ponteiro nulo!\n");
@@ -184,20 +202,23 @@ static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         printf("Potenciacao so funciona em matrizes quadradas\n");
         return ;
     }
-
+    if(n == 0){
+        (*self)->identity(*self);
+        return;
+    }
+    n--;
     MATRIX_TYPE* base = NEW_MATRIX_TYPE(A->rows, A->cols);  //base para permitir in-place
     base->cpy(&base, A);
 
     //exponenciação rapida iterativa em O(n³logn)
     while(n > 0){
-        if(n % 2 == 1){
+        if(n & 1){
            (*self)->mult(self, *self, base);
         }
         base->mult(&base, base, base);
-        n /= 2;
+        n >>= 1;
     }
-    CONCAT(delete_, MATRIX_TYPE)(&base);
-
+    base->free(&base);
     (*self)->was_modified = 1;
 }
 
@@ -365,47 +386,45 @@ static inline void CONCAT(RREF_, MATRIX_TYPE)(MATRIX_TYPE* mat){
 }
 
 //transforma a matriz na sua inversa
-static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self){
-    if((*self)->cols != (*self)->rows){
-        printf("Erro: A matriz nao é quadrada, portanto nao possui inversa\n");
+static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A) {
+    if (!self || !*self || !A) return 0;
+    if (A->cols != A->rows) {
+        printf("Erro: A matriz nao e quadrada, portanto nao possui inversa\n");
         return 0;
     }
-    //concatena a matriz identidade em self e aplica rref em ambas com os mesmos parametros
-    //a matriz identidade vai se transformar na inversa, caso a matriz seja invertivel
-    MATRIX_TYPE* I = NEW_MATRIX_TYPE((*self)->rows, (*self)->cols);
-    CONCAT(identity_, MATRIX_TYPE)(I);
-    
-    MATRIX_TYPE* TMP = NEW_MATRIX_TYPE((*self)->rows, (*self)->cols);
-    TMP->cpy(&TMP, *self);
 
-    CONCAT(concat_, MATRIX_TYPE)(&TMP, I);
+    MATRIX_TYPE* I = NEW_MATRIX_TYPE(A->rows, A->cols);
+    I->identity(I);
+
+    MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, A->cols);
+    TMP->cpy(&TMP, A);
+
+    TMP->hstack(&TMP, I);
     TMP->rref(TMP);
 
-    for(size_t i = 0; i < TMP->rows; i++){
-        if(!equal(TMP->at[i][i], 1)){
-            printf("Erro: Nao possui matriz inversa!\n"); 
-            //se tiver algum elemento diferente de 1 na diagonal, entao ela nao admite inversa,
-            //pois indice que tem uma linha nula, logo det = 0
-            I->free(&I);
-            TMP->free(&TMP);
-            return 0;
+    for (size_t i = 0; i < A->rows; i++) {
+        for (size_t j = 0; j < A->cols; j++) {
+            GENERICS_TYPE esperado = (i == j) ? (GENERICS_TYPE)1 : (GENERICS_TYPE)0;
+            if (!equal(TMP->at[i][j], esperado)) {
+                printf("Erro: Nao possui matriz inversa!\n");
+                I->free(&I);
+                TMP->free(&TMP);
+                return 0;
+            }
         }
     }
 
-    //atribui a I apenas a parte direita de TMP, que é a inversa
-    for(size_t i = 0; i < I->rows; i++){
-        for(size_t j = 0; j < I->cols; j++){
+    for (size_t i = 0; i < I->rows; i++) {
+        for (size_t j = 0; j < I->cols; j++) {
             I->at[i][j] = TMP->at[i][j + I->cols];
         }
     }
 
-    (*self)->free(self);
     TMP->free(&TMP);
-
-    *self = I; //aponta self para I
+    (*self)->cpy(self, I);
+    I->free(&I);
     return 1;
 }
-
 #endif
 
 static inline void CONCAT(print_, MATRIX_TYPE)(MATRIX_TYPE* self){
@@ -416,14 +435,14 @@ static inline void CONCAT(print_, MATRIX_TYPE)(MATRIX_TYPE* self){
 
     for(size_t i = 0; i < self->rows; i++){
         for(size_t j = 0; j < self->cols; j++){
-            if(abs_gen(self->at[i][j]) < eps) 
+            if(fabs(self->at[i][j]) < eps) 
                 self->at[i][j] = 0; // resolve o problema do -0.00
             printg(self->at[i][j]); //printgeneric
             putchar('\t');
         }
         putchar('\n');
-    }
-    
+    } 
+    putchar('\n');
 }
 
 #endif
@@ -442,7 +461,7 @@ static inline void CONCAT(apply_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE
     }
 }
 
-static inline MATRIX_TYPE* NEW_MATRIX_TYPE(size_t rows, size_t cols){ constructor da matriz
+static inline MATRIX_TYPE* NEW_MATRIX_TYPE(size_t rows, size_t cols){
     MATRIX_TYPE* mat = (MATRIX_TYPE*) malloc(sizeof(MATRIX_TYPE));
     if(!mat){
         printf("memoria insuficiente\n");
@@ -483,6 +502,7 @@ static inline MATRIX_TYPE* NEW_MATRIX_TYPE(size_t rows, size_t cols){ constructo
     mat->identity = CONCAT(identity_, MATRIX_TYPE);
     mat->hstack = CONCAT(concat_, MATRIX_TYPE);
     mat->apply = CONCAT(apply_, MATRIX_TYPE);
+    mat->transp = CONCAT(transp_, MATRIX_TYPE);
 
     #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_)
     mat->rref = CONCAT(RREF_, MATRIX_TYPE);
@@ -525,7 +545,7 @@ static inline MATRIX_TYPE* CONCAT(init_, MATRIX_TYPE)(MATRIX_TYPE* A){
 }
 
 //transforma um array 2d em uma matrix
-static inline MATRIX_TYPE* CONCAT(matrix_from_array_2d)(size_t m, size_t n, const GENERICS_TYPE mat[m][n]){
+static inline MATRIX_TYPE* CONCAT(MATRIX_TYPE, _from_array_2d)(size_t m, size_t n, const GENERICS_TYPE mat[m][n]){
     MATRIX_TYPE* A = NEW_MATRIX_TYPE(m, n);
     if(!A){
         printf("Memoria insuficiente!\n");
@@ -533,4 +553,12 @@ static inline MATRIX_TYPE* CONCAT(matrix_from_array_2d)(size_t m, size_t n, cons
     }
     memcpy(A->data, mat, n*m*sizeof(GENERICS_TYPE));
     return A;
+}
+
+static inline void CONCAT(MATRIX_TYPE, _set_array_2d)(MATRIX_TYPE* A, const GENERICS_TYPE mat[A->rows][A->cols]){
+    if(!A){
+        printf("Memoria insuficiente!\n");
+        return;
+    }
+    memcpy(A->data, mat, A->rows*A->cols*sizeof(GENERICS_TYPE));
 }
