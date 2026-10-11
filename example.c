@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "include/Matrix.h"
+#include "include/cMatrix.h"
 
 typedef struct{
     float a, b;
@@ -13,11 +13,11 @@ float fx(float x, void* p){
     return (x)*ps->a + ps->b;
 }
 
-void free_all(matrix_float* mtrzs[], int n){
+void free_all(cmatrix_float* mtrzs[], int n){
     if(!mtrzs) return;
     for(int i = 0; i < n; i++){
         if(mtrzs[i] != NULL){
-            M(mtrzs[i], free); 
+            cM(mtrzs[i], free); 
             mtrzs[i] = NULL;
         }
     }
@@ -28,24 +28,24 @@ void free_all(matrix_float* mtrzs[], int n){
 int main(){
     srand(time(NULL));
     
-    matrix_float* A = new_matrix_float(3, 6);
-    matrix_float* b = new_matrix_float(3, 1);
-    matrix_float* x = new_matrix_float(3, 1);
+    cmatrix_float* A = new_cmatrix_float(3, 6);
+    cmatrix_float* b = new_cmatrix_float(3, 1);
+    cmatrix_float* x = new_cmatrix_float(3, 1);
 
-    M(x, fill_rand, -10, 10, true);
-    M(b, fill_rand, -10, 10, true);
+    cM(x, fill_rand, -10, 10, true);
+    cM(b, fill_rand, -10, 10, true);
     { 
-        matrix_float* xt = new_matrix_float(3, 1);
-        M(xt, transp, x);
-        M(b, print);
-        M(xt, print);
-        M(A, mult, b, xt);
-        M(xt, free);
+        cmatrix_float* xt = new_cmatrix_float(3, 1);
+        cM(xt, transp, x);
+        cM(b, print);
+        cM(xt, print);
+        cM(A, mult, b, xt);
+        cM(xt, free);
     }
-    M(A, print);
-    M(A, diag, A);
-    M(A, print);
-    matrix_float* mtzs[] = {A, b, x};
+    cM(A, print);
+    cM(A, diag, A);
+    cM(A, print);
+    cmatrix_float* mtzs[] = {A, b, x};
     free_all(mtzs, 3);
     return 0;
 }

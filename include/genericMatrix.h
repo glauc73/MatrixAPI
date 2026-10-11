@@ -22,11 +22,11 @@
 #define eps 1e-8
 #endif
 
-#define MATRIX_TYPE CONCAT(matrix_, GENERICS_NAME)
+#define MATRIX_TYPE CONCAT(cmatrix_, GENERICS_NAME)
 
 typedef struct CONCAT(VTable_, GENERICS_NAME) CONCAT(VTable_, GENERICS_NAME);
 
-#define M(obj, method, ...) (obj)->vptr->method(&(obj), ##__VA_ARGS__)
+#define cM(obj, method, ...) (obj)->vptr->method(&(obj), ##__VA_ARGS__)
 
 typedef struct MATRIX_TYPE{
     GENERICS_TYPE* data;
@@ -99,7 +99,7 @@ static inline void CONCAT(copy_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
     if(!self || !*self || !B) return;
 
     if((*self)->rows != B->rows || (*self)->cols != B->cols){   
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(B->rows, B->cols);
     } 
     memcpy((*self)->data, B->data, B->rows * B->cols * sizeof(GENERICS_TYPE));
@@ -149,7 +149,7 @@ static inline void CONCAT(add_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         return;
     }
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
     //soma elemento a elemento e atribui em self
@@ -167,7 +167,7 @@ static inline void CONCAT(sub_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
     }
 
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
 
@@ -185,7 +185,7 @@ static inline void CONCAT(scale_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_
     }
 
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
      
@@ -222,8 +222,8 @@ static inline void CONCAT(mul_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
     }
 
     //usa temp para permitir in-place
-    M(*self, cpy, TMP);
-    M(TMP, free); 
+    cM(*self, cpy, TMP);
+    cM(TMP, free); 
 
     (*self)->was_modified = 1;
 }
@@ -242,7 +242,7 @@ static inline void CONCAT(hadamard_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATR
     if(!self || !*self || !A || !B) return;
     if(A->cols != B->cols || A->rows != B->rows) return;
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
     
@@ -264,18 +264,18 @@ static inline void CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE*
             tmp->at[j][i] = A->at[i][j];
         }
     }
-    M(*self, cpy, tmp);
+    cM(*self, cpy, tmp);
     (*self)->was_modified = A->was_modified;
-    M(tmp, free);
+    cM(tmp, free);
 }
 
 static inline void CONCAT(swap_cols_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t c1, size_t c2){
     if(!self || !*self) return;
     if(c1 >= (*self)->cols || c2 >= (*self)->cols) return;
 
-    M(*self, transp, *self);
-    M(*self, swapRows, c1, c2);
-    M(*self, transp, *self);
+    cM(*self, transp, *self);
+    cM(*self, swapRows, c1, c2);
+    cM(*self, transp, *self);
 }
 
 static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A){
@@ -296,7 +296,7 @@ static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
     }
      
     if((*self)->rows != dim || (*self)->cols != dim){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(dim, dim);
     }
     MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(dim , dim);
@@ -304,8 +304,8 @@ static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
         TMP->at[i][i] = A->at[is_col*i][is_row*i];
     }
 
-    M(*self, cpy, TMP);
-    M(TMP, free);
+    cM(*self, cpy, TMP);
+    cM(TMP, free);
 }
 
 static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, uint16_t n){
@@ -318,27 +318,27 @@ static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         return ;
     }
     if(n == 0){
-        M(*self, identity);
+        cM(*self, identity);
         return;
     }
     
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
     n--;
     MATRIX_TYPE* base = NEW_MATRIX_TYPE(A->rows, A->cols);  //base para permitir in-place
-    M(base, cpy, A);
+    cM(base, cpy, A);
 
     //exponenciação rapida iterativa em O(n³logn)
     while(n > 0){
         if(n & 1){
-            M(*self, mult, *self, base);
+            cM(*self, mult, *self, base);
         }
-        M(base, mult, base, base);
+        cM(base, mult, base, base);
         n >>= 1;
     }
-    M(base, free);
+    cM(base, free);
     (*self)->was_modified = 1;
 }
 
@@ -376,7 +376,7 @@ static inline int CONCAT(sub_iszero_, MATRIX_TYPE)(MATRIX_TYPE* mat, size_t i0, 
 //reduz a matriz a sua forma Escalonada Reduzida por linhas
 static inline void CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
     size_t i, j, i0 = 0;
-    M(*self, cpy, mat);
+    cM(*self, cpy, mat);
 
     for(j = 0; j < (*self)->cols; j++){
         i = i0; //inicializa a primeira linha para buscar
@@ -384,7 +384,7 @@ static inline void CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         if(i == (*self)->rows) //se nao encontou, continua
             continue;
         if(i != i0){
-            M(*self, swapRows, i0, i);
+            cM(*self, swapRows, i0, i);
         }
     
         for(i = i0 + 1; i < (*self)->rows; i++){
@@ -425,7 +425,7 @@ static inline GENERICS_TYPE CONCAT(det_, MATRIX_TYPE)(MATRIX_TYPE** self){
         if(i == (*self)->rows) //procura o primeiro elemento nao nulo em uma coluna
             continue;
         if(i != i0){
-            M(TMP, swapRows, i0, i);
+            cM(TMP, swapRows, i0, i);
             (*self)->det_cache *= -1; //trocar linhas equivale a multiplicar o determinante por -1
         }
     
@@ -448,7 +448,7 @@ static inline GENERICS_TYPE CONCAT(det_, MATRIX_TYPE)(MATRIX_TYPE** self){
     }
     (*self)->det_cache /= det_fact; //divide pelos fatores acumulados nas transformações
     
-    M(TMP, free);
+    cM(TMP, free);
     (*self)->was_modified = 0; //agora a matriz esta com o determinante correto, entao fica comom nao modificada
 
     return (*self)->det_cache;
@@ -475,7 +475,7 @@ static inline void CONCAT(concat_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
         }
     }
 
-    M(*self, free);
+    cM(*self, free);
     *self = new_matrix;
 }
 
@@ -515,8 +515,8 @@ static inline void CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_
 
 //coloca a matriz na sua Forma Escalonada Reduzida por Linhas
 static inline void CONCAT(RREF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
-    M(*self, cpy, mat);
-    M(*self, ref, mat);
+    cM(*self, cpy, mat);
+    cM(*self, ref, mat);
 
     size_t j0 = 0, i = 0;
     //aqui aplica o mesmo raciocinio do escalonamento, mas procurando o pivo na linha e zerando todos acima e abaixo dele
@@ -547,18 +547,18 @@ static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
     }
 
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
-        M(*self, free);
+        cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
     }
     
     MATRIX_TYPE* I = NEW_MATRIX_TYPE(A->rows, A->cols);
-    M(I, identity);
+    cM(I, identity);
 
     MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, A->cols);
 
-    M(TMP, cpy, A);
-    M(TMP, hstack, TMP, I);
-    M(TMP, rref, TMP);
+    cM(TMP, cpy, A);
+    cM(TMP, hstack, TMP, I);
+    cM(TMP, rref, TMP);
 
     for (size_t i = 0; i < A->rows; i++) {
         for (size_t j = 0; j < A->cols; j++) {
@@ -601,10 +601,10 @@ void CONCAT(solve_, MATRIX_TYPE)(MATRIX_TYPE** x, const MATRIX_TYPE* A, const MA
     MATRIX_TYPE* Ab = NEW_MATRIX_TYPE(A->rows, A->cols + 1);
     MATRIX_TYPE* Ab_s = NEW_MATRIX_TYPE(A->rows, A->cols + 1);
     MATRIX_TYPE* A_s = NEW_MATRIX_TYPE(A->rows, A->cols);
-    M(Ab, hstack, A, b);
+    cM(Ab, hstack, A, b);
     
-    M(Ab_s, rref, Ab);
-    M(A_s, rref, A);
+    cM(Ab_s, rref, Ab);
+    cM(A_s, rref, A);
 
     int rank_Ab = 0, rank_A = 0;
     for(int i = 0; i < A->rows; i++){
