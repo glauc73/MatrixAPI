@@ -84,7 +84,7 @@ cM(C, mult, A, B);   // C = A · B
 | Diagonal | `cM(B, diag, A)` | Se A é quadrada: extrai diagonal; se A é vetor linha/coluna: monta matriz diagonal | B = diag(a₁₁, a₂₂, …, aₙₙ) |
 | REF | `cM(B, ref, A)` | Forma escalonada por linhas via eliminação gaussiana (pivôs não normalizados) | B = ref(A) |
 | RREF | `cM(B, rref, A)` | Forma escalonada reduzida (pivôs = 1, zeros acima e abaixo) — só `float`/`double` | B = rref(A) |
-| Inversa | `int ok = cM(B, inv, A)` | Inversa via Gauss-Jordan; retorna 1 se existe, 0 se singular — só `float`/`double` | B = A⁻¹, A · B = I |
+| Inversa | `int ok = cM(B, inv, A)` | Inversa via Gauss-Jordan; — só `float`/`double` | B = A⁻¹, A · B = I |
 | Determinante | `float d = cM(A, det)` | Determinante via escalonamento gaussiano O(n³); cacheado enquanto A não mudar | d = det(A) |
 | Concatenação horizontal | `cM(C, hstack, A, B)` | Junta A e B lado a lado (exige mesmo número de linhas) | C = [A \| B] |
 | Aplicar função | `cM(A, apply, f, params)` | Aplica `f(aᵢⱼ, params)` a cada elemento de A in-place | aᵢⱼ ← f(aᵢⱼ) |
