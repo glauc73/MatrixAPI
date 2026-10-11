@@ -24,6 +24,21 @@
 
 #define MATRIX_TYPE CONCAT(cmatrix_, GENERICS_NAME)
 
+#ifndef CMATRIX_ERROR_DEFINED
+#define CMATRIX_ERROR_DEFINED
+typedef enum {
+    CMATRIX_OK = 0,           // operação realizada com sucesso
+    CMATRIX_NULL_POINTER,     // ponteiro nulo passado como argumento
+    CMATRIX_ALLOC_ERROR,      // falha de alocação de memória
+    CMATRIX_DIMENSION_MISMATCH, // dimensões incompatíveis entre as matrizes
+    CMATRIX_NOT_SQUARE,       // operação exige matriz quadrada
+    CMATRIX_SINGULAR_MATRIX,  // matriz singular (não possui inversa)
+    CMATRIX_INCOMPATIBLE_RESHAPE, // novo shape tem número de elementos diferente
+    CMATRIX_INVALID_DIAG_INPUT,   // diag exige matriz quadrada ou vetor linha/coluna
+    CMATRIX_INDEX_OUT_OF_RANGE,  // índice de linha ou coluna fora do intervalo válido
+} cmatrix_error;
+#endif
+
 typedef struct CONCAT(VTable_, GENERICS_NAME) CONCAT(VTable_, GENERICS_NAME);
 
 #define cM(obj, method, ...) (obj)->vptr->method(&(obj), ##__VA_ARGS__)
@@ -41,66 +56,69 @@ typedef struct MATRIX_TYPE{
 }MATRIX_TYPE;
 
 typedef struct CONCAT(VTable_, GENERICS_NAME){ 
-    void (*mult)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
-    void (*hadmult)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
-    void (*add)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
-    void (*sub)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
-    void (*pow)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, uint16_t);
-    void (*scale)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, GENERICS_TYPE);
-    void (*cpy)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
-    void (*free)(struct MATRIX_TYPE**);
-    void (*ref)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
-    void (*identity)(struct MATRIX_TYPE**);
-    void (*print)(struct MATRIX_TYPE**);
-    void (*hstack)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
-    void (*apply)(struct MATRIX_TYPE**, GENERICS_TYPE (*)(GENERICS_TYPE, void*), void*);
-    void (*transp)(struct MATRIX_TYPE**, struct MATRIX_TYPE*);
-    void (*diag)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*); 
-    void (*fill)(struct MATRIX_TYPE**, GENERICS_TYPE);
-    void (*reshape)(struct MATRIX_TYPE**, size_t, size_t);
-    void (*swapRows)(struct MATRIX_TYPE**, size_t, size_t);
-    void (*swapCols)(struct MATRIX_TYPE**, size_t, size_t);
+    cmatrix_error (*mult)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
+    cmatrix_error (*hadmult)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
+    cmatrix_error (*add)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
+    cmatrix_error (*sub)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
+    cmatrix_error (*pow)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, uint16_t);
+    cmatrix_error (*scale)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, GENERICS_TYPE);
+    cmatrix_error (*cpy)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
+    cmatrix_error (*free)(struct MATRIX_TYPE**);
+    cmatrix_error (*ref)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
+    cmatrix_error (*identity)(struct MATRIX_TYPE**);
+    cmatrix_error (*print)(struct MATRIX_TYPE**);
+    cmatrix_error (*hstack)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*, const struct MATRIX_TYPE*);
+    cmatrix_error (*apply)(struct MATRIX_TYPE**, GENERICS_TYPE (*)(GENERICS_TYPE, void*), void*);
+    cmatrix_error (*transp)(struct MATRIX_TYPE**, struct MATRIX_TYPE*);
+    cmatrix_error (*diag)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*); 
+    cmatrix_error (*fill)(struct MATRIX_TYPE**, GENERICS_TYPE);
+    cmatrix_error (*reshape)(struct MATRIX_TYPE**, size_t, size_t);
+    cmatrix_error (*swapRows)(struct MATRIX_TYPE**, size_t, size_t);
+    cmatrix_error (*swapCols)(struct MATRIX_TYPE**, size_t, size_t);
     GENERICS_TYPE (*det)(struct MATRIX_TYPE**);
    
     
     #if !defined(_MATRIX_DOUBLE_) && !defined(_MATRIX_FLOAT_)
-    void (*fill_rand)(struct MATRIX_TYPE**, GENERICS_TYPE, GENERICS_TYPE);
+    cmatrix_error (*fill_rand)(struct MATRIX_TYPE**, GENERICS_TYPE, GENERICS_TYPE);
     #endif
 
     #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_) //metodos que só fazem sentido para double
     GENERICS_TYPE (*dot)(struct MATRIX_TYPE**, const MATRIX_TYPE*);
-    void (*rref)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
-    int (*inv)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
-    void (*fill_rand)(struct MATRIX_TYPE**, GENERICS_TYPE, GENERICS_TYPE, int);
+    cmatrix_error (*rref)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
+    cmatrix_error (*inv)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*);
+    cmatrix_error (*fill_rand)(struct MATRIX_TYPE**, GENERICS_TYPE, GENERICS_TYPE, int);
     #endif
 }CONCAT(VTable, GENERICS_NAME);
 
 #define NEW_MATRIX_TYPE CONCAT(new_, MATRIX_TYPE)
 static inline MATRIX_TYPE* NEW_MATRIX_TYPE(size_t rows, size_t cols);
 
-static inline void CONCAT(swap_rows_, MATRIX_TYPE)(MATRIX_TYPE** mat, size_t r1, size_t r2){//troca linhas em O(1)
-    if(r1 >= (*mat)->rows || r2 >= (*mat)->rows) return;
+static inline cmatrix_error CONCAT(swap_rows_, MATRIX_TYPE)(MATRIX_TYPE** mat, size_t r1, size_t r2){//troca linhas em O(1)
+    if(r1 >= (*mat)->rows || r2 >= (*mat)->rows) return CMATRIX_INDEX_OUT_OF_RANGE;
     GENERICS_TYPE* temp = (*mat)->at[r1];
     (*mat)->at[r1] = (*mat)->at[r2];
     (*mat)->at[r2] = temp;
+    return CMATRIX_OK;
 }
 
 #if !defined(__INTELLISENSE__) && !defined(__clangd__)
 
-static inline void CONCAT(delete_, MATRIX_TYPE)(MATRIX_TYPE** self){ //destrói corretamente a matriz
-    if(self == NULL || *self == NULL) return;
+static inline cmatrix_error CONCAT(delete_, MATRIX_TYPE)(MATRIX_TYPE** self){ //destrói corretamente a matriz
+    if(self == NULL || *self == NULL) return CMATRIX_NULL_POINTER;
     free((*self)->data);
     free((*self)->at);
     free((*self));
     *self = NULL;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(copy_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* B){
-    if(!self || !*self || !B) return;
+static inline cmatrix_error CONCAT(copy_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* B){
+    if(!self || !*self || !B) return CMATRIX_NULL_POINTER;
 
     if((*self)->rows != B->rows || (*self)->cols != B->cols){   
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(B->rows, B->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     } 
     memcpy((*self)->data, B->data, B->rows * B->cols * sizeof(GENERICS_TYPE));
 
@@ -109,18 +127,18 @@ static inline void CONCAT(copy_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
     if(!(*self)->was_modified){
         (*self)->det_cache = B->det_cache;
     }
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(reshape_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t m, size_t n){
-    if(!self || !*self) return;
+static inline cmatrix_error CONCAT(reshape_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t m, size_t n){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
 
     if((*self)->rows*(*self)->cols != m*n){
-        printf(":(\n");
-        return;
+        return CMATRIX_INCOMPATIBLE_RESHAPE;
     }
     if((*self)->rows != m){
         GENERICS_TYPE** new_at = (GENERICS_TYPE**) realloc((*self)->at, m*sizeof(GENERICS_TYPE*));
-        if(!new_at) return;
+        if(!new_at) return CMATRIX_ALLOC_ERROR;
         (*self)->at = new_at;
     }
     (*self)->rows = m;
@@ -131,26 +149,27 @@ static inline void CONCAT(reshape_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t m, s
     }
 
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE value){
-    if(!self || !*self) return;
+static inline cmatrix_error CONCAT(fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE value){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
 
     size_t n = (*self)->rows * (*self)->cols;
     for(size_t i = 0; i < n; i++){
         (*self)->data[i] = value;
     }
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(add_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
-    if(A->rows != B->rows || A->cols != B->cols){
-        printf("O numero de linhas e colunas das matrizes precisam ser iguais\n");
-        return;
-    }
+static inline cmatrix_error CONCAT(add_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
+    if(!self || !*self || !A || !B) return CMATRIX_NULL_POINTER;
+    if(A->rows != B->rows || A->cols != B->cols) return CMATRIX_DIMENSION_MISMATCH;
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
     //soma elemento a elemento e atribui em self
     int n = A->rows * A->cols;
@@ -158,17 +177,17 @@ static inline void CONCAT(add_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         (*self)->data[k] = A->data[k] + B->data[k];
     
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(sub_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
-    if(A->rows != B->rows || A->cols != B->cols){
-        printf("O numero de linhas e colunas das matrizes precisam ser iguais\n");
-        return;
-    }
+static inline cmatrix_error CONCAT(sub_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
+    if(!self || !*self || !A || !B) return CMATRIX_NULL_POINTER;
+    if(A->rows != B->rows || A->cols != B->cols) return CMATRIX_DIMENSION_MISMATCH;
 
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
 
     int n = A->rows * A->cols;
@@ -176,17 +195,16 @@ static inline void CONCAT(sub_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         (*self)->data[k] = A->data[k] - B->data[k];
    
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(scale_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, GENERICS_TYPE alpha){
-    if(!self || !A){
-        printf("ponteiro nulo!\n");
-        return;
-    }
+static inline cmatrix_error CONCAT(scale_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, GENERICS_TYPE alpha){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
 
     if((*self)->rows != A->rows || (*self)->cols != A->cols){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
      
     int n = A->rows * A->cols;
@@ -194,22 +212,15 @@ static inline void CONCAT(scale_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_
         (*self)->data[k] = A->data[k]*alpha;
     
     (*self)->was_modified = 1;
-
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(mul_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
-    if(!self || !A || !B){
-        printf("ponteiro nulo!\n");
-        return;
-    }
-    if(A->cols != B->rows){
-        printf("O numero de colunas de A(%zu x %zu) deve ser igual ao numero de linhas de B(%zu x %zu)\n",
-             A->rows, A->cols, B->rows, B->cols
-        );
-        return;
-    }
+static inline cmatrix_error CONCAT(mul_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
+    if(!self || !*self || !A || !B) return CMATRIX_NULL_POINTER;
+    if(A->cols != B->rows) return CMATRIX_DIMENSION_MISMATCH;
     
     MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, B->cols);
+    if(!TMP) return CMATRIX_ALLOC_ERROR;
 
     //aplica o algoritmo de multiplicação de matrizes;
     for(size_t i = 0; i < TMP->rows; i++){
@@ -226,9 +237,12 @@ static inline void CONCAT(mul_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
     cM(TMP, free); 
 
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(identity_, MATRIX_TYPE)(MATRIX_TYPE** self){
+static inline cmatrix_error CONCAT(identity_, MATRIX_TYPE)(MATRIX_TYPE** self){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
+    if((*self)->rows != (*self)->cols) return CMATRIX_NOT_SQUARE;
     for(size_t i = 0; i < (*self)->rows; i++){
         for(size_t j = 0; j < (*self)->cols; j++){
             (*self)->at[i][j] = (i == j);
@@ -236,14 +250,16 @@ static inline void CONCAT(identity_, MATRIX_TYPE)(MATRIX_TYPE** self){
     }
     (*self)->det_cache = 1;
     (*self)->was_modified = 0;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(hadamard_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
-    if(!self || !*self || !A || !B) return;
-    if(A->cols != B->cols || A->rows != B->rows) return;
+static inline cmatrix_error CONCAT(hadamard_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
+    if(!self || !*self || !A || !B) return CMATRIX_NULL_POINTER;
+    if(A->cols != B->cols || A->rows != B->rows) return CMATRIX_DIMENSION_MISMATCH;
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
     
     int r = A->rows, c = A->cols;
@@ -253,11 +269,13 @@ static inline void CONCAT(hadamard_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATR
         (*self)->data[k] = A->data[k] * B->data[k];
    
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A){
-    if(!self || !*self || !A) return;
+static inline cmatrix_error CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
     MATRIX_TYPE* tmp = NEW_MATRIX_TYPE(A->cols, A->rows);
+    if(!tmp) return CMATRIX_ALLOC_ERROR;
 
     for(int i = 0; i < A->rows; i++){
         for(int j = 0; j < A->cols; j++){
@@ -267,19 +285,21 @@ static inline void CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE*
     cM(*self, cpy, tmp);
     (*self)->was_modified = A->was_modified;
     cM(tmp, free);
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(swap_cols_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t c1, size_t c2){
-    if(!self || !*self) return;
-    if(c1 >= (*self)->cols || c2 >= (*self)->cols) return;
+static inline cmatrix_error CONCAT(swap_cols_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t c1, size_t c2){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
+    if(c1 >= (*self)->cols || c2 >= (*self)->cols) return CMATRIX_INDEX_OUT_OF_RANGE;
 
     cM(*self, transp, *self);
     cM(*self, swapRows, c1, c2);
     cM(*self, transp, *self);
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A){
-    if(!self || !*self || !A) return;
+static inline cmatrix_error CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
 
     int is_col = 0, is_row = 0, dim;
     if(A->rows == A->cols){
@@ -292,42 +312,40 @@ static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
         is_col = 1;
         dim = A->rows;
     }else{
-        return;
+        return CMATRIX_INVALID_DIAG_INPUT;
     }
      
     if((*self)->rows != dim || (*self)->cols != dim){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(dim, dim);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
     MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(dim , dim);
+    if(!TMP) return CMATRIX_ALLOC_ERROR;
     for(int i = 0; i < dim; i++){
         TMP->at[i][i] = A->at[is_col*i][is_row*i];
     }
 
     cM(*self, cpy, TMP);
     cM(TMP, free);
+    return CMATRIX_OK;
 }
 
-static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, uint16_t n){
-    if(!self || !A){
-        printf("ponteiro nulo!\n");
-        return;
-    }
-    if(A->cols != A->rows) {
-        printf("Potenciacao so funciona em matrizes quadradas\n");
-        return ;
-    }
+static inline cmatrix_error CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, uint16_t n){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
+    if(A->cols != A->rows) return CMATRIX_NOT_SQUARE;
     if(n == 0){
-        cM(*self, identity);
-        return;
+        return cM(*self, identity);
     }
     
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
         cM(*self, free);
         *self = NEW_MATRIX_TYPE(A->rows, A->cols);
+        if(!*self) return CMATRIX_ALLOC_ERROR;
     }
     n--;
     MATRIX_TYPE* base = NEW_MATRIX_TYPE(A->rows, A->cols);  //base para permitir in-place
+    if(!base) return CMATRIX_ALLOC_ERROR;
     cM(base, cpy, A);
 
     //exponenciação rapida iterativa em O(n³logn)
@@ -340,6 +358,7 @@ static inline void CONCAT(pow_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
     }
     cM(base, free);
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
 static inline void CONCAT(add_rows_, MATRIX_TYPE)(MATRIX_TYPE* mat, size_t r1, size_t r2, double k){
@@ -374,7 +393,8 @@ static inline int CONCAT(sub_iszero_, MATRIX_TYPE)(MATRIX_TYPE* mat, size_t i0, 
 }
 
 //reduz a matriz a sua forma Escalonada Reduzida por linhas
-static inline void CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
+static inline cmatrix_error CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
+    if(!self || !*self || !mat) return CMATRIX_NULL_POINTER;
     size_t i, j, i0 = 0;
     cM(*self, cpy, mat);
 
@@ -402,6 +422,7 @@ static inline void CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
     }
     
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
 
@@ -455,19 +476,18 @@ static inline GENERICS_TYPE CONCAT(det_, MATRIX_TYPE)(MATRIX_TYPE** self){
 }
 
 //concatena duas matrizes de mesmo numero de linhas horizontalmente
-static inline void CONCAT(concat_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
-    if(A->rows != (*self)->rows){
-        printf("A concatenacao horizontal de matrizes exige o mesmo numero de linhas");
-        return;
-    }
+static inline cmatrix_error CONCAT(concat_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A, const MATRIX_TYPE* B){
+    if(!self || !*self || !A || !B) return CMATRIX_NULL_POINTER;
+    if(A->rows != B->rows) return CMATRIX_DIMENSION_MISMATCH;
 
     size_t new_cols = A->cols + B->cols;
 
-    MATRIX_TYPE* new_matrix = NEW_MATRIX_TYPE((*self)->rows, new_cols);
+    MATRIX_TYPE* new_matrix = NEW_MATRIX_TYPE(A->rows, new_cols);
+    if(!new_matrix) return CMATRIX_ALLOC_ERROR;
 
-    for(size_t i = 0; i < (*self)->rows; i++){
+    for(size_t i = 0; i < A->rows; i++){
         for(size_t j = 0; j < new_cols; j++){
-            if(j < (*self)->cols){
+            if(j < A->cols){
                 new_matrix->at[i][j] = A->at[i][j];
             } else {
                 new_matrix->at[i][j] = B->at[i][j - A->cols];
@@ -477,12 +497,13 @@ static inline void CONCAT(concat_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
 
     cM(*self, free);
     *self = new_matrix;
+    return CMATRIX_OK;
 }
 
 
 #if !defined(_MATRIX_DOUBLE_) && !defined(_MATRIX_FLOAT_)
-static inline void CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE min, GENERICS_TYPE max){
-    if(!self || !*self) return;
+static inline cmatrix_error CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE min, GENERICS_TYPE max){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
     if(min > max){
         GENERICS_TYPE t = min; min = max; max = t;
     }
@@ -493,13 +514,14 @@ static inline void CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_
         (*self)->data[k] = min + rand() % r;
     }
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 #endif
 
 #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_)
 
-static inline void CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE min, GENERICS_TYPE max, int only_int){
-    if(!self || !*self) return;
+static inline cmatrix_error CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE min, GENERICS_TYPE max, int only_int){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
     if(min > max){
         GENERICS_TYPE t = min; min = max; max = t;
     }
@@ -511,10 +533,12 @@ static inline void CONCAT(rand_fill_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_
         (*self)->data[k] = only_int ? min + rand() % r : (min + scale * (max - min));
     }
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
 //coloca a matriz na sua Forma Escalonada Reduzida por Linhas
-static inline void CONCAT(RREF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
+static inline cmatrix_error CONCAT(RREF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* mat){
+    if(!self || !*self || !mat) return CMATRIX_NULL_POINTER;
     cM(*self, cpy, mat);
     cM(*self, ref, mat);
 
@@ -536,15 +560,13 @@ static inline void CONCAT(RREF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_T
         j0 = j + 1; // como um pivo na coluna seguinte só pode acontecer mais a direita, procuramos a partir da direita de j;
     }
     (*self)->was_modified = 1;
+    return CMATRIX_OK;
 }
 
 //transforma a matriz na sua inversa
-static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A) {
+static inline cmatrix_error CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A) {
     if (!self || !*self || !A) return 0;
-    if (A->cols != A->rows) {
-        printf("Erro: A matriz nao e quadrada, portanto nao possui inversa\n");
-        return 0;
-    }
+    if (A->cols != A->rows) return CMATRIX_NOT_SQUARE; 
 
     if((*self)->cols != A->cols || (*self)->rows != A->rows){
         cM(*self, free);
@@ -564,10 +586,9 @@ static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
         for (size_t j = 0; j < A->cols; j++) {
             GENERICS_TYPE esperado = (i == j) ? (GENERICS_TYPE)1 : (GENERICS_TYPE)0;
             if (!equal(TMP->at[i][j], esperado)) {
-                printf("Erro: Nao possui matriz inversa!\n");
-                I->vptr->free(&I);
-                TMP->vptr->free(&TMP);
-                return 0;
+                cM(I, free);
+                cM(TMP, free);
+                return CMATRIX_SINGULAR_MATRIX;
             }
         }
     }
@@ -578,10 +599,10 @@ static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
         }
     }
 
-    TMP->vptr->free(&TMP);
-    (*self)->vptr->cpy(self, I);
-    I->vptr->free(&I);
-    return 1;
+    cM(TMP, free);
+    cM(*self, cpy, I);
+    cM(I, free);
+    return CMATRIX_OK;
 }
 
 static inline GENERICS_TYPE CONCAT(dot_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A){
@@ -630,11 +651,8 @@ void CONCAT(solve_, MATRIX_TYPE)(MATRIX_TYPE** x, const MATRIX_TYPE* A, const MA
 
 #endif
 
-static inline void CONCAT(print_, MATRIX_TYPE)(MATRIX_TYPE** self){
-    if(!self) {
-        printf("Ponteiro Nulo");
-        return;
-    }
+static inline cmatrix_error CONCAT(print_, MATRIX_TYPE)(MATRIX_TYPE** self){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
 
     for(size_t i = 0; i < (*self)->rows; i++){
         for(size_t j = 0; j < (*self)->cols; j++){
@@ -646,22 +664,22 @@ static inline void CONCAT(print_, MATRIX_TYPE)(MATRIX_TYPE** self){
         putchar('\n');
     } 
     putchar('\n');
+    return CMATRIX_OK;
 }
 
 #endif
 
 //aplica a função func com parametros params a cada elemento de self
-static inline void CONCAT(apply_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE (*func)(GENERICS_TYPE, void*), void* params){
-    if(self == NULL || *self == NULL) {
-        printf("Ponteiro Nulo\n");
-        return;
-    }
+static inline cmatrix_error CONCAT(apply_, MATRIX_TYPE)(MATRIX_TYPE** self, GENERICS_TYPE (*func)(GENERICS_TYPE, void*), void* params){
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
+    if(!func) return CMATRIX_NULL_POINTER;
 
     size_t quant = (*self)->rows * (*self)->cols;
     GENERICS_TYPE* ptr = (*self)->data;
     for(size_t i = 0; i < quant; i++){
         ptr[i] = func(ptr[i], params);
     }
+    return CMATRIX_OK;
 }
 
 
@@ -772,10 +790,8 @@ static inline MATRIX_TYPE* CONCAT(MATRIX_TYPE, _from_array_2d)(size_t m, size_t 
     return A;
 }
 
-static inline void CONCAT(MATRIX_TYPE, _set_array_2d)(MATRIX_TYPE* A, const GENERICS_TYPE mat[A->rows][A->cols]){
-    if(!A){
-        printf("Memoria insuficiente!\n");
-        return;
-    }
+static inline cmatrix_error CONCAT(MATRIX_TYPE, _set_array_2d)(MATRIX_TYPE* A, const GENERICS_TYPE mat[A->rows][A->cols]){
+    if(!A || !mat) return CMATRIX_NULL_POINTER;
     memcpy(A->data, mat, A->rows*A->cols*sizeof(GENERICS_TYPE));
+    return CMATRIX_OK;
 }

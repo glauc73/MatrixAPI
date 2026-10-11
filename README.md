@@ -244,7 +244,57 @@ cmatrix_float* mats[] = {A, B, C};
 free_all(mats, 3);
 ```
 
----
+------
+
+## Tratamento de erros
+
+Todas as funções que antes retornavam `void` agora retornam `cmatrix_error`, um enum definido em `genericMatrix.h`:
+
+| Código | Valor | Quando ocorre |
+|--------|-------|---------------|
+| `CMATRIX_OK` | 0 | Operação realizada com sucesso |
+| `CMATRIX_NULL_POINTER` | 1 | Um ponteiro nulo foi passado como argumento |
+| `CMATRIX_ALLOC_ERROR` | 2 | Falha na alocação de memória (`malloc`/`realloc`) |
+| `CMATRIX_DIMENSION_MISMATCH` | 3 | Dimensões incompatíveis entre as matrizes (ex: `add` com tamanhos diferentes) |
+| `CMATRIX_NOT_SQUARE` | 4 | A operação exige matriz quadrada (ex: `identity`, `pow`) |
+| `CMATRIX_SINGULAR_MATRIX` | 5 | A matriz não possui inversa |
+| `CMATRIX_INCOMPATIBLE_RESHAPE` | 6 | O novo shape tem número de elementos diferente do original |
+| `CMATRIX_INVALID_DIAG_INPUT` | 7 | `diag` recebeu uma matriz que não é quadrada nem vetor linha/coluna |
+| `CMATRIX_INDEX_OUT_OF_BOUNDS` | 8 | Índice de linha ou coluna fora do intervalo válido (`swapRows`, `swapCols`) |
+
+As funções com retorno próprio — `det` (`float`/`double`/`int`), `dot` e `inv` — não foram alteradas.
+
+### Exemplo de uso
+
+```c
+cmatrix_error err;
+
+cmatrix_float* A = new_cmatrix_float(3, 3);
+cmatrix_float* B = new_cmatrix_float(2, 4);  // dimensões diferentes de A
+cmatrix_float* C = new_cmatrix_float(3, 3);
+
+cM(A, fill_rand, -5, 5, 1);
+cM(B, fill_rand, -5, 5, 1);
+
+// tentativa de somar matrizes incompatíveis
+err = cM(C, add, A, B);
+if (err != CMATRIX_OK) {
+    printf("Erro %d: dimensoes incompativeis\n", err);
+    // err == CMATRIX_DIMENSION_MISMATCH (3)
+}
+
+// uso normal com checagem
+err = cM(C, mult, A, A);
+if (err != CMATRIX_OK) {
+    printf("Erro inesperado: %d\n", err);
+    cM(A, free); cM(B, free); cM(C, free);
+    return err;
+}
+
+cM(A, free); cM(B, free); cM(C, free);
+```
+
+> O valor numérico dos erros segue a ordem do enum e pode ser usado diretamente como código de saída (`return err`) ou logado para diagnóstico.
 
 ## Compilação
 
