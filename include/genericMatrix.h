@@ -764,23 +764,8 @@ static inline MATRIX_TYPE* CONCAT(get_, MATRIX_TYPE)(size_t rows, size_t cols){
     return mat;
 }
 
-//constroi a matriz e inicializa ela com uma matriz A
-static inline MATRIX_TYPE* CONCAT(init_, MATRIX_TYPE)(MATRIX_TYPE* A){
-    if(!A){
-        printf("Ponteiro Nulo\n");
-        return NULL;
-    }
-    MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, A->cols);
-    if(!TMP){
-        printf("Memoria insuficiente!\n");
-        return NULL;
-    }
-    TMP->vptr->cpy(&TMP, A);
-    return TMP;
-}
-
 //transforma um array 2d em uma matrix
-static inline MATRIX_TYPE* CONCAT(MATRIX_TYPE, _from_array_2d)(size_t m, size_t n, const GENERICS_TYPE mat[m][n]){
+static inline MATRIX_TYPE* CONCAT(MATRIX_TYPE,_init2D)(size_t m, size_t n, const GENERICS_TYPE mat[m][n]){
     MATRIX_TYPE* A = NEW_MATRIX_TYPE(m, n);
     if(!A){
         printf("Memoria insuficiente!\n");
@@ -790,8 +775,16 @@ static inline MATRIX_TYPE* CONCAT(MATRIX_TYPE, _from_array_2d)(size_t m, size_t 
     return A;
 }
 
-static inline cmatrix_error CONCAT(MATRIX_TYPE, _set_array_2d)(MATRIX_TYPE* A, const GENERICS_TYPE mat[A->rows][A->cols]){
-    if(!A || !mat) return CMATRIX_NULL_POINTER;
-    memcpy(A->data, mat, A->rows*A->cols*sizeof(GENERICS_TYPE));
+static inline cmatrix_error CONCAT(MATRIX_TYPE, _set2D)(MATRIX_TYPE** A, size_t m, size_t n, const GENERICS_TYPE mat[m][n]){
+
+    if(!A || !*A || !mat) return CMATRIX_NULL_POINTER;
+
+    if((*A)->rows != m || (*A)->cols != n){
+        *A =  CONCAT(MATRIX_TYPE,_init2D)(m, n, mat);
+        return CMATRIX_OK;
+    }
+    memcpy((*A)->data, mat, m*n*sizeof(GENERICS_TYPE));
     return CMATRIX_OK;
 }
+
+

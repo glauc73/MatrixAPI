@@ -25,15 +25,16 @@ void free_all(cmatrix_float* mtrzs[], int n){
 
 #define true 1
 
-
 int main(){
     srand(time(NULL));
     
     cmatrix_float* A = new_cmatrix_float(3, 6);
     cmatrix_float* b = new_cmatrix_float(3, 1);
-    cmatrix_float* x = new_cmatrix_float(3, 1);
 
-    cM(x, fill_rand, -10, 10, true);
+    float x_2d[3][1] = {1, 2, 3};
+    cmatrix_float* x = new_cmatrix_float(3, 1);
+    cmatrix_float_set2D(&x, 3, 1, x_2d);
+    
     cM(b, fill_rand, -10, 10, true);
     { 
         cmatrix_float* xt = new_cmatrix_float(3, 1);
