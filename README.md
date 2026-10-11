@@ -15,7 +15,7 @@ cmatrix/
 ├── include/
 │   ├── genericsBase.h   # infraestrutura de tipos genéricos
 │   ├── genericMatrix.h  # implementação do TAD e das funções
-│   └── Matrix.h         # ponto de entrada — inclua só este
+│   └── cMatrix.h         # ponto de entrada — inclua só este
 ├── example.c
 ```
 
