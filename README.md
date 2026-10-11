@@ -17,7 +17,6 @@ cmatrix/
 │   ├── genericMatrix.h  # implementação do TAD e das funções
 │   └── Matrix.h         # ponto de entrada — inclua só este
 ├── example.c
-└── in.txt
 ```
 
 ---
