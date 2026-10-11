@@ -41,12 +41,15 @@ Também há construtores auxiliares:
 // lê os valores do stdin
 cmatrix_float* A = get_cmatrix_float(3, 3);
 
-// cria uma cópia de outra matriz
-cmatrix_float* B = init_cmatrix_float(A);
-
 // constrói a partir de um array 2D existente
 float arr[2][3] = {{1,2,3},{4,5,6}};
-cmatrix_float* C = cmatrix_float_from_array_2d(2, 3, arr);
+cmatrix_float* C = cmatrix_float_init2D(2, 3, arr);
+
+//seta um array 2D numa matriz já criada
+cmatrix_int* A = new_cmatrix_int(3, 3);
+float arr[2][3] = {{1,2,3},{4,5,6}};
+cmatrix_int_set2D(&A, 2, 3, arr);
+
 ```
 
 ### A macro `cM`
