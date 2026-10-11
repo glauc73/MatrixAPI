@@ -57,7 +57,9 @@ typedef struct CONCAT(VTable_, GENERICS_NAME){
     void (*transp)(struct MATRIX_TYPE**, struct MATRIX_TYPE*);
     void (*diag)(struct MATRIX_TYPE**, const struct MATRIX_TYPE*); 
     void (*fill)(struct MATRIX_TYPE**, GENERICS_TYPE);
-    void (*reshape)(struct MATRIX_TYPE**, size_t m, size_t n);
+    void (*reshape)(struct MATRIX_TYPE**, size_t, size_t);
+    void (*swapRows)(struct MATRIX_TYPE**, size_t, size_t);
+    void (*swapCols)(struct MATRIX_TYPE**, size_t, size_t);
     GENERICS_TYPE (*det)(struct MATRIX_TYPE**);
    
     
@@ -76,11 +78,11 @@ typedef struct CONCAT(VTable_, GENERICS_NAME){
 #define NEW_MATRIX_TYPE CONCAT(new_, MATRIX_TYPE)
 static inline MATRIX_TYPE* NEW_MATRIX_TYPE(size_t rows, size_t cols);
 
-static inline void CONCAT(swap_rows_, MATRIX_TYPE)(MATRIX_TYPE* mat, size_t r1, size_t r2){//troca linhas em O(1)
-    if(r1 >= mat->rows || r2 >= mat->rows) return;
-    GENERICS_TYPE* temp = mat->at[r1];
-    mat->at[r1] = mat->at[r2];
-    mat->at[r2] = temp;
+static inline void CONCAT(swap_rows_, MATRIX_TYPE)(MATRIX_TYPE** mat, size_t r1, size_t r2){//troca linhas em O(1)
+    if(r1 >= (*mat)->rows || r2 >= (*mat)->rows) return;
+    GENERICS_TYPE* temp = (*mat)->at[r1];
+    (*mat)->at[r1] = (*mat)->at[r2];
+    (*mat)->at[r2] = temp;
 }
 
 #if !defined(__INTELLISENSE__) && !defined(__clangd__)
@@ -267,6 +269,15 @@ static inline void CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE*
     M(tmp, free);
 }
 
+static inline void CONCAT(swap_cols_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t c1, size_t c2){
+    if(!self || !*self) return;
+    if(c1 >= (*self)->cols || c2 >= (*self)->cols) return;
+
+    M(*self, transp, *self);
+    M(*self, swapRows, c1, c2);
+    M(*self, transp, *self);
+}
+
 static inline void CONCAT(diag_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TYPE* A){
     if(!self || !*self || !A) return;
 
@@ -373,7 +384,7 @@ static inline void CONCAT(REF_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX_TY
         if(i == (*self)->rows) //se nao encontou, continua
             continue;
         if(i != i0){
-            CONCAT(swap_rows_, MATRIX_TYPE)(*self, i0, i); //se encontrar, troca com a primeira linha dessa iteração
+            M(*self, swapRows, i0, i);
         }
     
         for(i = i0 + 1; i < (*self)->rows; i++){
@@ -414,7 +425,7 @@ static inline GENERICS_TYPE CONCAT(det_, MATRIX_TYPE)(MATRIX_TYPE** self){
         if(i == (*self)->rows) //procura o primeiro elemento nao nulo em uma coluna
             continue;
         if(i != i0){
-            CONCAT(swap_rows_, MATRIX_TYPE)(TMP, i0, i); //caso encontre, troca se necessario
+            M(TMP, swapRows, i0, i);
             (*self)->det_cache *= -1; //trocar linhas equivale a multiplicar o determinante por -1
         }
     
@@ -541,13 +552,13 @@ static inline int CONCAT(inverse_, MATRIX_TYPE)(MATRIX_TYPE** self, const MATRIX
     }
     
     MATRIX_TYPE* I = NEW_MATRIX_TYPE(A->rows, A->cols);
-    I->vptr->identity(&I);
+    M(I, identity);
 
     MATRIX_TYPE* TMP = NEW_MATRIX_TYPE(A->rows, A->cols);
-    TMP->vptr->cpy(&TMP, A);
 
-    TMP->vptr->hstack(&TMP, TMP, I);
-    TMP->vptr->rref(&TMP, TMP);
+    M(TMP, cpy, A);
+    M(TMP, hstack, TMP, I);
+    M(TMP, rref, TMP);
 
     for (size_t i = 0; i < A->rows; i++) {
         for (size_t j = 0; j < A->cols; j++) {
@@ -672,6 +683,8 @@ static CONCAT(VTable_, GENERICS_NAME) CONCAT(vtable_, GENERICS_NAME) = {
     .identity = CONCAT(identity_, MATRIX_TYPE),
     .hstack = CONCAT(concat_, MATRIX_TYPE),
     .apply = CONCAT(apply_, MATRIX_TYPE),
+    .swapRows = CONCAT(swap_rows_, MATRIX_TYPE),
+    .swapCols = CONCAT(swap_cols_, MATRIX_TYPE),
     .reshape = CONCAT(reshape_, MATRIX_TYPE),
     
     #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_)

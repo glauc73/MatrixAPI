@@ -98,11 +98,11 @@ static inline void print_ull(unsigned long long x){
 }
 
 static inline void print_f(float x){
-    printf("%.2f", x);
+    printf("%.3f", x);
 }
 
 static inline void print_dbl(double x){
-    printf("%.2lf", x);
+    printf("%.3lf", x);
 }
 
 static inline void print_ch(char x){

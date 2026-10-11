@@ -27,22 +27,25 @@ void free_all(matrix_float* mtrzs[], int n){
 
 int main(){
     srand(time(NULL));
-    matrix_float* A = new_matrix_float(3, 3);
-    matrix_float* A_inv = new_matrix_float(3, 3);
-    matrix_float* C = new_matrix_float(3, 3);
+    
+    matrix_float* A = new_matrix_float(3, 6);
     matrix_float* b = new_matrix_float(3, 1);
     matrix_float* x = new_matrix_float(3, 1);
-      
-    M(A, fill_rand, -10, 10, true);   
+
+    M(x, fill_rand, -10, 10, true);
+    M(b, fill_rand, -10, 10, true);
+    { 
+        matrix_float* xt = new_matrix_float(3, 1);
+        M(xt, transp, x);
+        M(b, print);
+        M(xt, print);
+        M(A, mult, b, xt);
+        M(xt, free);
+    }
     M(A, print);
-    M(C, fill_rand, -10, 10, true);
-    M(C, print);
-    printf("dot(A, C) = %.0f\n", M(A, dot, C));
-
-    M(C, fill, 2);
-    M(C, print);
-
-    matrix_float* mtzs[] = {A, C, A_inv, b, x};
-    free_all(mtzs, 5);
+    M(A, diag, A);
+    M(A, print);
+    matrix_float* mtzs[] = {A, b, x};
+    free_all(mtzs, 3);
     return 0;
 }
