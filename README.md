@@ -24,7 +24,7 @@ cmatrix/
 ## Uso básico
 
 ```c
-#include "include/Matrix.h"
+#include "include/cMatrix.h"
 ```
 
 ### Tipos disponíveis
