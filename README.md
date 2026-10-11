@@ -1,425 +1,269 @@
-# MatrixC — Biblioteca Genérica de Matrizes em C Puro
+# cmatrix
 
-> Álgebra linear com estilo orientado a objetos, sem depender de C++.
+Biblioteca *header-only* de matrizes genéricas em **C11 puro**, com interface orientada a objetos via macro `cM`.
 
-[![Linguagem](https://img.shields.io/badge/Linguagem-C11-blue.svg)](https://en.cppreference.com/w/c/11)
-[![Header-only](https://img.shields.io/badge/Header--only-sim-green.svg)]()
-[![Licença](https://img.shields.io/badge/Licença-MIT-yellow.svg)]()
-
----
-
-## Sumário
-
-- [Sobre o projeto](#sobre-o-projeto)
-- [Nome sugerido](#nome-sugerido)
-- [Funcionalidades](#funcionalidades)
-- [Estrutura de arquivos](#estrutura-de-arquivos)
-- [Pré-requisitos](#pré-requisitos)
-- [Instalação](#instalação)
-- [Compilação](#compilação)
-  - [Linux / macOS](#linux--macos)
-  - [Windows (MinGW / MSYS2)](#windows-mingw--msys2)
-  - [Usando os scripts automáticos](#usando-os-scripts-automáticos)
-- [Como usar a biblioteca](#como-usar-a-biblioteca)
-  - [Incluindo no projeto](#incluindo-no-projeto)
-  - [Criando e liberando matrizes](#criando-e-liberando-matrizes)
-  - [Preenchimento](#preenchimento)
-  - [Impressão](#impressão)
-  - [Operações aritméticas](#operações-aritméticas)
-  - [Operações de álgebra linear](#operações-de-álgebra-linear)
-  - [Liberação de memória](#liberação-de-memória)
-- [Exemplo completo](#exemplo-completo)
-- [Referência da API](#referência-da-api)
-- [FAQ](#faq)
-- [Contribuindo](#contribuindo)
-
----
-
-## Sobre o projeto
-
-**MatrixC** é uma biblioteca *header-only* escrita em **C11 puro** que oferece:
-
-- Um tipo abstrato de dado (TAD) `matrix_<tipo>` genérico para `int`, `float` e `double`
-- Interface orientada a objetos usando a macro `M(matriz, método, ...)`, sem C++
-- Algoritmos de álgebra linear clássicos implementados com eliminação gaussiana
-- Zero dependências externas além da libc padrão
-
-É ideal para projetos acadêmicos, sistemas embarcados e qualquer situação em que C++ não esteja disponível mas você ainda precise de operações matriciais robustas.
-
----
-
-## Nome sugerido
-
-O nome original **MatrixAPI** descreve o que a biblioteca é, mas não o que ela faz nem em qual linguagem. Sugestões melhores:
-
-| Nome | Justificativa |
-|------|--------------|
-| **MatrixC** ✅ | Direto: matriz em C. Fácil de pesquisar, sem ambiguidade. |
-| **cmatrix** | Segue convenção Unix (`cjson`, `curl`). Minúsculo, limpo. |
-| **gmatrix** | De *generic matrix*. Destaca o diferencial genérico. |
-| **linalgc** | Reforça que é álgebra linear em C. |
-
-**Recomendação: `MatrixC`** — simples, memorável e imediatamente claro para quem pesquisa "matrix library C".
-
----
-
-## Funcionalidades
-
-| Operação | Descrição |
-|----------|-----------|
-| `new_matrix_<T>` | Aloca uma matriz M×N do tipo T |
-| `fill_rand` | Preenche com valores aleatórios em um intervalo |
-| `print` | Exibe a matriz formatada no terminal |
-| `transp` | Transposta |
-| `mult` | Multiplicação de matrizes |
-| `diag` | Extrai / monta a diagonal principal |
-| `REF` | Forma escalonada por linhas (*Row Echelon Form*) |
-| `RREF` | Forma escalonada reduzida (*Reduced REF*) via eliminação gaussiana |
-| `inv` | Matriz inversa |
-| `det` | Determinante (eliminação gaussiana, O(n³)) |
-| `free` | Libera a memória alocada |
+```bash
+gcc -std=c11 meu_programa.c -Iinclude -lm -o meu_programa
+```
 
 ---
 
 ## Estrutura de arquivos
 
 ```
-MatrixC/
+cmatrix/
 ├── include/
-│   ├── genericsBase.h    # Macros genéricas (infraestrutura de tipos)
-│   ├── genericMatrix.h   # Implementação do TAD e das funções genéricas
-│   └── Matrix.h          # Ponto de entrada único — inclua este no seu código
-├── example.c             # Demonstração de uso
-├── in.txt                # Entrada de exemplo para testar via stdin
-├── build.sh              # Script de compilação (Linux/macOS)
-├── build.bat             # Script de compilação (Windows)
-└── README.md
-```
-
-> **Regra de ouro:** inclua apenas `Matrix.h` no seu código. Os outros headers são dependências internas.
-
----
-
-## Pré-requisitos
-
-### Linux / macOS
-- GCC 7+ ou Clang 6+ com suporte a C11
-- `make` (opcional, para projetos maiores)
-
-```bash
-# Ubuntu / Debian
-sudo apt install gcc
-
-# Fedora / RHEL
-sudo dnf install gcc
-
-# macOS (via Homebrew)
-brew install gcc
-```
-
-### Windows
-- [MinGW-w64](https://www.mingw-w64.org/) — recomendado via [MSYS2](https://www.msys2.org/)
-- Ou [TDM-GCC](https://jmeubank.github.io/tdm-gcc/)
-
-```powershell
-# Via MSYS2 (dentro do terminal MSYS2)
-pacman -S mingw-w64-x86_64-gcc
+│   ├── genericsBase.h   # infraestrutura de tipos genéricos
+│   ├── genericMatrix.h  # implementação do TAD e das funções
+│   └── Matrix.h         # ponto de entrada — inclua só este
+├── example.c
+└── in.txt
 ```
 
 ---
 
-## Instalação
+## Uso básico
 
-A biblioteca é *header-only*: basta copiar a pasta `include/` para dentro do seu projeto.
+```c
+#include "include/Matrix.h"
+```
 
-```bash
-# Clone o repositório
-git clone https://github.com/glauc73/MatrixAPI.git
-cd MatrixAPI
+### Tipos disponíveis
+
+```c
+cmatrix_int*    A = new_cmatrix_int(3, 3);
+cmatrix_float*  B = new_cmatrix_float(3, 3);
+cmatrix_double* C = new_cmatrix_double(3, 3);
+```
+
+Também há construtores auxiliares:
+
+```c
+// lê os valores do stdin
+cmatrix_float* A = get_cmatrix_float(3, 3);
+
+// cria uma cópia de outra matriz
+cmatrix_float* B = init_cmatrix_float(A);
+
+// constrói a partir de um array 2D existente
+float arr[2][3] = {{1,2,3},{4,5,6}};
+cmatrix_float* C = cmatrix_float_from_array_2d(2, 3, arr);
+```
+
+### A macro `cM`
+
+Toda operação é feita via `cM(matriz, método, ...)`:
+
+```c
+cM(A, print);
+cM(C, mult, A, B);   // C = A · B
+```
+
+---
+
+## Funcionalidades
+
+| Operação | Macro `cM` | O que faz | Expressão aritmética |
+|----------|------------|-----------|----------------------|
+| Imprimir | `cM(A, print)` | Exibe a matriz formatada no terminal | — |
+| Copiar | `cM(B, cpy, A)` | Copia o conteúdo de A em B, redimensionando se necessário | B ← A |
+| Preencher constante | `cM(A, fill, v)` | Preenche todos os elementos com o valor `v` | aᵢⱼ = v |
+| Preencher aleatório (`int`) | `cM(A, fill_rand, min, max)` | Preenche com inteiros aleatórios em `[min, max]` | aᵢⱼ ~ U(min, max) ∩ ℤ |
+| Preencher aleatório (`float`/`double`) | `cM(A, fill_rand, min, max, inteiros)` | Preenche com valores aleatórios; `inteiros=1` restringe a ℤ | aᵢⱼ ~ U(min, max) |
+| Identidade | `cM(A, identity)` | Transforma A na matriz identidade (deve ser quadrada) | A = I |
+| Transposta | `cM(B, transp, A)` | Armazena a transposta de A em B | B = Aᵀ |
+| Adição | `cM(C, add, A, B)` | Soma elemento a elemento | C = A + B |
+| Subtração | `cM(C, sub, A, B)` | Subtrai elemento a elemento | C = A − B |
+| Multiplicação | `cM(C, mult, A, B)` | Produto matricial (exige colunas de A = linhas de B) | C = A · B |
+| Produto de Hadamard | `cM(C, hadmult, A, B)` | Multiplica elemento a elemento (exige mesmas dimensões) | cᵢⱼ = aᵢⱼ · bᵢⱼ |
+| Escalonamento | `cM(B, scale, A, alpha)` | Multiplica todos os elementos por um escalar `alpha` | B = α · A |
+| Potência | `cM(B, pow, A, n)` | Eleva A à potência inteira n (exige matriz quadrada; n=0 retorna I) | B = Aⁿ |
+| Produto interno | `float d = cM(A, dot, B)` | Soma dos produtos elemento a elemento (mesmas dimensões) — só `float`/`double` | d = Σ aᵢⱼ · bᵢⱼ |
+| Diagonal | `cM(B, diag, A)` | Se A é quadrada: extrai diagonal; se A é vetor linha/coluna: monta matriz diagonal | B = diag(a₁₁, a₂₂, …, aₙₙ) |
+| REF | `cM(B, ref, A)` | Forma escalonada por linhas via eliminação gaussiana (pivôs não normalizados) | B = ref(A) |
+| RREF | `cM(B, rref, A)` | Forma escalonada reduzida (pivôs = 1, zeros acima e abaixo) — só `float`/`double` | B = rref(A) |
+| Inversa | `int ok = cM(B, inv, A)` | Inversa via Gauss-Jordan; retorna 1 se existe, 0 se singular — só `float`/`double` | B = A⁻¹, A · B = I |
+| Determinante | `float d = cM(A, det)` | Determinante via escalonamento gaussiano O(n³); cacheado enquanto A não mudar | d = det(A) |
+| Concatenação horizontal | `cM(C, hstack, A, B)` | Junta A e B lado a lado (exige mesmo número de linhas) | C = [A \| B] |
+| Aplicar função | `cM(A, apply, f, params)` | Aplica `f(aᵢⱼ, params)` a cada elemento de A in-place | aᵢⱼ ← f(aᵢⱼ) |
+| Redimensionar | `cM(A, reshape, m, n)` | Muda as dimensões mantendo os dados (exige m×n = linhas×colunas originais) | — |
+| Trocar linhas | `cM(A, swapRows, i, j)` | Troca as linhas i e j em O(1) | Lᵢ ↔ Lⱼ |
+| Trocar colunas | `cM(A, swapCols, i, j)` | Troca as colunas i e j | Cᵢ ↔ Cⱼ |
+| Liberar | `cM(A, free)` | Libera a memória e anula o ponteiro | — |
+
+> `rref`, `inv` e `dot` só existem para `cmatrix_float` e `cmatrix_double`.  
+> `fill_rand` para `int` não recebe o parâmetro `inteiros`.
+
+---
+
+## Exemplos por operação
+
+### Adição e subtração
+
+```c
+cmatrix_float* A = new_cmatrix_float(3, 3);
+cmatrix_float* B = new_cmatrix_float(3, 3);
+cmatrix_float* C = new_cmatrix_float(3, 3);
+
+cM(A, fill_rand, -5, 5, 1);
+cM(B, fill_rand, -5, 5, 1);
+
+cM(C, add, A, B);   // C = A + B
+cM(C, sub, A, B);   // C = A - B
+```
+
+### Escalonamento (multiplicação por escalar)
+
+```c
+cmatrix_float* B = new_cmatrix_float(3, 3);
+cM(B, scale, A, 2.5f);   // B = 2.5 * A
+```
+
+### Potência de matriz
+
+```c
+cmatrix_float* B = new_cmatrix_float(3, 3);
+cM(B, pow, A, 4);   // B = A⁴
+// pow com n=0 retorna a identidade
+```
+
+### Produto de Hadamard
+
+```c
+cmatrix_float* C = new_cmatrix_float(3, 3);
+cM(C, hadmult, A, B);   // cᵢⱼ = aᵢⱼ * bᵢⱼ
+```
+
+### Produto interno (dot)
+
+```c
+// A e B podem ter qualquer forma, desde que tenham o mesmo total de elementos
+float d = cM(A, dot, B);   // d = Σ aᵢⱼ * bᵢⱼ
+printf("dot = %.4f\n", d);
+```
+
+### Identidade
+
+```c
+cmatrix_float* I = new_cmatrix_float(4, 4);
+cM(I, identity);   // I vira a identidade 4×4
+```
+
+### Diagonal
+
+```c
+// Extraindo a diagonal de uma matriz quadrada
+cmatrix_float* D = new_cmatrix_float(3, 3);
+cM(D, diag, A);   // D = diag(a₁₁, a₂₂, a₃₃)
+
+// Construindo matriz diagonal a partir de vetor
+cmatrix_float* v = new_cmatrix_float(1, 3);
+cM(v, fill_rand, 1, 9, 1);
+cmatrix_float* D2 = new_cmatrix_float(3, 3);
+cM(D2, diag, v);   // D2 = diag(v[0], v[1], v[2])
+```
+
+### Concatenação horizontal
+
+```c
+// A: 3×2, B: 3×4 → C: 3×6
+cmatrix_float* C = new_cmatrix_float(3, 2);
+cM(C, hstack, A, B);
+```
+
+### Apply (aplicar função elemento a elemento)
+
+```c
+typedef struct { float a, b; } Params;
+
+float linear(float x, void* p) {
+    Params* ps = (Params*)p;
+    return ps->a * x + ps->b;
+}
+
+Params ps = {2.0f, 1.0f};
+cM(A, apply, linear, &ps);   // aᵢⱼ ← 2*aᵢⱼ + 1
+```
+
+### Reshape
+
+```c
+// Transforma uma matriz 2×6 em 3×4 (mesmo total de elementos)
+cM(A, reshape, 3, 4);
+```
+
+### Trocar linhas e colunas
+
+```c
+cM(A, swapRows, 0, 2);   // troca linha 0 com linha 2
+cM(A, swapCols, 1, 3);   // troca coluna 1 com coluna 3
+```
+
+### REF e RREF
+
+```c
+cmatrix_float* R  = new_cmatrix_float(3, 3);
+cmatrix_float* RR = new_cmatrix_float(3, 3);
+
+cM(R,  ref,  A);   // forma escalonada
+cM(RR, rref, A);   // forma escalonada reduzida
+```
+
+### Inversa
+
+```c
+cmatrix_float* Ainv = new_cmatrix_float(3, 3);
+int ok = cM(Ainv, inv, A);
+if (!ok) printf("A nao e invertivel\n");
+```
+
+### Determinante
+
+```c
+float d = cM(A, det);
+printf("det(A) = %.4f\n", d);
+// O resultado fica em cache: chamar det() novamente sem modificar A é O(1)
+```
+
+---
+
+## Liberação de memória
+
+```c
+cM(A, free);
+```
+
+Para liberar vários de uma vez:
+
+```c
+void free_all(cmatrix_float* ms[], int n) {
+    for (int i = 0; i < n; i++)
+        if (ms[i]) { cM(ms[i], free); ms[i] = NULL; }
+}
+
+cmatrix_float* mats[] = {A, B, C};
+free_all(mats, 3);
 ```
 
 ---
 
 ## Compilação
 
-### Linux / macOS
+```bash
+# Linux / macOS
+gcc -std=c11 meu_programa.c -Iinclude -lm -o meu_programa
+
+# Windows (MinGW)
+gcc -std=c11 meu_programa.c -Iinclude -lm -o meu_programa.exe
+```
+
+Ou use os scripts incluídos:
 
 ```bash
-gcc -std=c11 example.c -Iinclude -lm -o main
-./main < in.txt
-```
-
-> A flag `-lm` é necessária se seu código usar funções de `<math.h>`.
-
-### Windows (MinGW / MSYS2)
-
-```cmd
-gcc -std=c11 example.c -Iinclude -lm -o main.exe
-main.exe < in.txt
-```
-
-### Usando os scripts automáticos
-
-Os scripts detectam o compilador disponível, compilam e executam o exemplo automaticamente.
-
-**Linux / macOS:**
-```bash
-chmod +x build.sh
-./build.sh
-```
-
-**Windows:**
-```cmd
-build.bat
+./build.sh meu_programa.c   # Linux/macOS
+build.bat  meu_programa.c   # Windows
 ```
 
 ---
 
-## Como usar a biblioteca
-
-### Incluindo no projeto
-
-```c
-#include "include/Matrix.h"
-```
-
-Isso é tudo. Não há arquivos `.c` para compilar separadamente.
-
-### Criando e liberando matrizes
-
-A convenção de nomenclatura é `new_matrix_<tipo>(linhas, colunas)`.
-
-```c
-// Tipos disponíveis: int, float, double
-matrix_float* A  = new_matrix_float(3, 3);   // 3×3 float
-matrix_int*   B  = new_matrix_int(2, 4);     // 2×4 int
-matrix_double* C = new_matrix_double(4, 4);  // 4×4 double
-```
-
-### Preenchimento
-
-```c
-// Preenche com valores aleatórios entre -10 e 10
-// Último parâmetro: 1 = inteiros, 0 = floats
-M(A, fill_rand, -10, 10, 1);
-
-// Preenche com zeros (comportamento padrão de new_matrix)
-// As matrizes já são alocadas zeradas
-```
-
-### Impressão
-
-```c
-M(A, print);
-```
-
-Saída típica:
-```
-[ -3.00   7.00   1.00 ]
-[  5.00  -2.00   9.00 ]
-[  0.00   4.00  -6.00 ]
-```
-
-### Operações aritméticas
-
-```c
-matrix_float* resultado = new_matrix_float(3, 3);
-
-// Multiplicação: resultado = B * C
-M(resultado, mult, B, C);
-
-// Transposta de A (resultado é armazenado no próprio A)
-M(A, transp, A);
-```
-
-### Operações de álgebra linear
-
-```c
-// Forma escalonada (REF)
-M(A, REF, A);
-
-// Forma escalonada reduzida (RREF)
-M(A, RREF, A);
-
-// Inversa
-matrix_float* inv_A = new_matrix_float(3, 3);
-M(inv_A, inv, A);
-
-// Determinante (retorna float/double/int)
-float d = M(A, det);
-printf("det(A) = %.4f\n", d);
-
-// Diagonal
-matrix_float* diag_A = new_matrix_float(3, 3);
-M(diag_A, diag, A);
-```
-
-### Liberação de memória
-
-Sempre libere a memória após o uso:
-
-```c
-M(A, free);
-M(B, free);
-M(C, free);
-```
-
-Ou use o padrão helper do exemplo:
-
-```c
-void free_all(matrix_float* mtrzs[], int n) {
-    for (int i = 0; i < n; i++) {
-        if (mtrzs[i] != NULL) {
-            M(mtrzs[i], free);
-            mtrzs[i] = NULL;
-        }
-    }
-}
-
-matrix_float* mtzs[] = {A, B, C};
-free_all(mtzs, 3);
-```
-
----
-
-## Exemplo completo
-
-O arquivo `example.c` demonstra o fluxo completo:
-
-```c
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include "include/Matrix.h"
-
-#define true 1
-
-void free_all(matrix_float* mtrzs[], int n) {
-    if (!mtrzs) return;
-    for (int i = 0; i < n; i++) {
-        if (mtrzs[i] != NULL) {
-            M(mtrzs[i], free);
-            mtrzs[i] = NULL;
-        }
-    }
-}
-
-int main() {
-    srand(time(NULL));
-
-    // Cria matrizes
-    matrix_float* A = new_matrix_float(3, 6);
-    matrix_float* b = new_matrix_float(3, 1);
-    matrix_float* x = new_matrix_float(3, 1);
-
-    // Preenche x e b com valores aleatórios inteiros entre -10 e 10
-    M(x, fill_rand, -10, 10, true);
-    M(b, fill_rand, -10, 10, true);
-
-    // Imprime b e x transposta
-    M(b, print);
-
-    {
-        matrix_float* xt = new_matrix_float(3, 1);
-        M(xt, transp, x);
-        M(xt, print);
-
-        // A = b * xᵀ  (produto externo)
-        M(A, mult, b, xt);
-        M(xt, free);
-    }
-
-    // Imprime A e sua diagonal
-    M(A, print);
-    M(A, diag, A);
-    M(A, print);
-
-    // Libera tudo
-    matrix_float* mtzs[] = {A, b, x};
-    free_all(mtzs, 3);
-
-    return 0;
-}
-```
-
-**Compilar e rodar:**
-```bash
-gcc -std=c11 example.c -Iinclude -lm -o main
-./main < in.txt
-```
-
----
-
-## Referência da API
-
-### Tipos disponíveis
-
-```c
-matrix_int    // Matriz de inteiros
-matrix_float  // Matriz de floats
-matrix_double // Matriz de doubles
-```
-
-### Construtores / Destrutores
-
-| Chamada | Descrição |
-|---------|-----------|
-| `new_matrix_float(m, n)` | Aloca matriz float M×N |
-| `new_matrix_int(m, n)` | Aloca matriz int M×N |
-| `new_matrix_double(m, n)` | Aloca matriz double M×N |
-| `M(mat, free)` | Libera a memória |
-
-### Métodos (via macro `M`)
-
-| Método | Parâmetros extras | Descrição |
-|--------|-------------------|-----------|
-| `print` | — | Imprime a matriz |
-| `fill_rand` | `min, max, inteiros` | Preenche aleatoriamente |
-| `transp` | `src` | Transposta de `src` → `dest` |
-| `mult` | `A, B` | Multiplicação: `dest = A * B` |
-| `diag` | `src` | Diagonal principal de `src` → `dest` |
-| `REF` | `src` | Forma escalonada de `src` |
-| `RREF` | `src` | Forma escalonada reduzida de `src` |
-| `inv` | `src` | Inversa de `src` → `dest` |
-| `det` | — | Retorna o determinante |
-
-### A macro `M`
-
-A macro `M(matriz, metodo, ...)` é o coração da interface OO:
-
-```c
-// Equivalente a: matriz->metodo(matriz, ...)
-M(A, print);
-M(A, mult, B, C);   // A = B * C
-```
-
----
-
-## FAQ
-
-**P: Posso usar tipos além de `int`, `float` e `double`?**
-R: Sim. O sistema de macros em `genericsBase.h` permite adicionar novos tipos instanciando as funções genéricas de `genericMatrix.h` para o novo tipo. Veja os exemplos existentes como modelo.
-
-**P: A biblioteca é thread-safe?**
-R: As operações em matrizes diferentes são independentes. Operações na *mesma* matriz a partir de múltiplas threads precisam de sincronização externa.
-
-**P: Preciso linkar alguma biblioteca extra?**
-R: Apenas `-lm` (libmath) se seu código usar `<math.h>` diretamente. A biblioteca em si depende apenas de `stdlib.h` e `string.h`.
-
-**P: Qual padrão C é necessário?**
-R: C11 (`-std=c11`). Versões mais antigas podem funcionar, mas não são garantidas.
-
----
-
-## Contribuindo
-
-1. Faça um fork do repositório
-2. Crie um branch: `git checkout -b minha-feature`
-3. Commit suas mudanças: `git commit -m 'Adiciona feature X'`
-4. Push: `git push origin minha-feature`
-5. Abra um Pull Request
-
----
-
-*Desenvolvido por [glauc73](https://github.com/glauc73)*
+*por [glauc73](https://github.com/glauc73)*

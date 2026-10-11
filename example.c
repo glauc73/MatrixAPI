@@ -25,6 +25,7 @@ void free_all(cmatrix_float* mtrzs[], int n){
 
 #define true 1
 
+
 int main(){
     srand(time(NULL));
     
