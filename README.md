@@ -91,6 +91,9 @@ cM(C, mult, A, B);   // C = A · B
 | Redimensionar | `cM(A, reshape, m, n)` | Muda as dimensões mantendo os dados (exige m×n = linhas×colunas originais) | — |
 | Trocar linhas | `cM(A, swapRows, i, j)` | Troca as linhas i e j em O(1) | Lᵢ ↔ Lⱼ |
 | Trocar colunas | `cM(A, swapCols, i, j)` | Troca as colunas i e j | Cᵢ ↔ Cⱼ |
+| Submatriz | `cM(B, slice, A, i0, i1, j0, j1)` | Extrai a submatriz de A formada pelas linhas `[i0, i1]` e colunas `[j0, j1]` em B | B = A[i0:i1, j0:j1] |
+| Obter coluna | `cM(B, get_col, A, j)` | Extrai a coluna `j` de A como vetor coluna em B | B = A[:, j] |
+| Obter linha | `cM(B, get_row, A, i)` | Extrai a linha `i` de A como vetor linha em B | B = A[i, :] |
 | Liberar | `cM(A, free)` | Libera a memória e anula o ponteiro | — |
 
 > `rref`, `inv` e `dot` só existem para `cmatrix_float` e `cmatrix_double`.  
