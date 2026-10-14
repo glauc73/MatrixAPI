@@ -75,6 +75,9 @@ typedef struct CONCAT(VTable_, GENERICS_NAME){
     cmatrix_error (*reshape)(struct MATRIX_TYPE**, size_t, size_t);
     cmatrix_error (*swapRows)(struct MATRIX_TYPE**, size_t, size_t);
     cmatrix_error (*swapCols)(struct MATRIX_TYPE**, size_t, size_t);
+    cmatrix_error (*slice)(struct MATRIX_TYPE**, struct MATRIX_TYPE*, size_t, size_t, size_t, size_t);
+    cmatrix_error (*getCol)(struct MATRIX_TYPE**, struct MATRIX_TYPE*, size_t);
+    cmatrix_error (*getRow)(struct MATRIX_TYPE**, struct MATRIX_TYPE*, size_t);
     GENERICS_TYPE (*det)(struct MATRIX_TYPE**);
    
     
@@ -291,10 +294,55 @@ static inline cmatrix_error CONCAT(transp_, MATRIX_TYPE)(MATRIX_TYPE** self, MAT
 static inline cmatrix_error CONCAT(swap_cols_, MATRIX_TYPE)(MATRIX_TYPE** self, size_t c1, size_t c2){
     if(!self || !*self) return CMATRIX_NULL_POINTER;
     if(c1 >= (*self)->cols || c2 >= (*self)->cols) return CMATRIX_INDEX_OUT_OF_RANGE;
+    if(c1 == c2) return CMATRIX_OK;
 
-    cM(*self, transp, *self);
-    cM(*self, swapRows, c1, c2);
-    cM(*self, transp, *self);
+    GENERICS_TYPE* pc1 = (*self)->data + c1*(*self)->rows;
+    GENERICS_TYPE* pc2 = (*self)->data + c2*(*self)->rows;
+    for(size_t i = 0; i < (*self)->rows; i++){
+        GENERICS_TYPE tmp = pc1[i]; pc1[i] = pc2[i]; pc2[i] = tmp;
+    }
+    return CMATRIX_OK;
+}
+
+static inline cmatrix_error CONCAT(slice_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A, size_t i0, size_t i1, size_t j0, size_t j1){
+    if(!A) return CMATRIX_NULL_POINTER;
+    size_t m = A->rows;   size_t n = A->cols;
+    
+    if(i1 < i0) {size_t tmp = i0, i0 = i1, i1 = i0;}
+    if(j1 < j0) {size_t tmp = j0, j0 = j1, j1 = j0;}
+    
+    if(i1 >= m || j1 >= n) return CMATRIX_INDEX_OUT_OF_RANGE;
+    if(!self || !*self) return CMATRIX_NULL_POINTER;
+    
+    size_t slice_m = i1 - i0 + 1;
+    size_t slice_n = j1 - j0 + 1;
+
+    if((*self)->rows != slice_m || (*self)->cols != slice_n){
+        cM(*self, free);
+        *self = NEW_MATRIX_TYPE(slice_m, slice_n);
+    }
+    
+    for(size_t i = 0; i < slice_m; i++){
+        for(size_t j = 0; j < slice_n; j++){
+            (*self)->data[i*slice_n + j] = A->data[(i + i0)*n + j + j0];
+        }
+    }
+    return CMATRIX_OK;
+}
+
+static inline cmatrix_error CONCAT(get_col_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A, size_t col){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
+    if(col >= A->cols) return CMATRIX_INDEX_OUT_OF_RANGE;
+
+    cM(*self, slice, A, 0, A->rows - 1, col, col);
+    return CMATRIX_OK;
+}
+
+static inline cmatrix_error CONCAT(get_row_, MATRIX_TYPE)(MATRIX_TYPE** self, MATRIX_TYPE* A, size_t row){
+    if(!self || !*self || !A) return CMATRIX_NULL_POINTER;
+    if(row >= A->rows) return CMATRIX_INDEX_OUT_OF_RANGE;
+
+    cM(*self, slice, A, row, row, 0, A->cols - 1);
     return CMATRIX_OK;
 }
 
@@ -704,6 +752,9 @@ static CONCAT(VTable_, GENERICS_NAME) CONCAT(vtable_, GENERICS_NAME) = {
     .swapRows = CONCAT(swap_rows_, MATRIX_TYPE),
     .swapCols = CONCAT(swap_cols_, MATRIX_TYPE),
     .reshape = CONCAT(reshape_, MATRIX_TYPE),
+    .slice = CONCAT(slice_, MATRIX_TYPE),
+    .getCol = CONCAT(get_col_, MATRIX_TYPE),
+    .getRow = CONCAT(get_row_, MATRIX_TYPE),
     
     #if defined(_MATRIX_DOUBLE_) || defined(_MATRIX_FLOAT_)
     .rref = CONCAT(RREF_, MATRIX_TYPE),

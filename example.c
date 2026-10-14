@@ -26,28 +26,29 @@ void free_all(cmatrix_float* mtrzs[], int n){
 #define true 1
 
 int main(){
-    srand(time(NULL));
-    
-    cmatrix_float* A = new_cmatrix_float(3, 6);
-    cmatrix_float* b = new_cmatrix_float(3, 1);
+    cmatrix_float* Ab = get_cmatrix_float(5, 8);
+    int n = Ab->cols - 1;
+    cmatrix_float* b = get_cmatrix_float(Ab->rows, 1);
+    cM(b, getCol, Ab, n);
+    cmatrix_float* v[n];
 
-    float x_2d[3][1] = {1, 2, 3};
-    cmatrix_float* x = new_cmatrix_float(3, 1);
-    cmatrix_float_set2D(&x, 3, 1, x_2d);
-    
-    cM(b, fill_rand, -10, 10, true);
-    { 
-        cmatrix_float* xt = new_cmatrix_float(3, 1);
-        cM(xt, transp, x);
-        cM(b, print);
-        cM(xt, print);
-        cM(A, mult, b, xt);
-        cM(xt, free);
+    for(int i = 0; i < n; i++) {
+        v[i] = new_cmatrix_float(Ab->rows, 1);
+        cM(v[i], getCol, Ab, i);
     }
-    cM(A, print);
-    cM(A, diag, A);
-    cM(A, print);
-    cmatrix_float* mtzs[] = {A, b, x};
-    free_all(mtzs, 3);
+
+    cM(Ab, free);
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
