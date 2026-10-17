@@ -100,6 +100,133 @@ cM(C, mult, A, B);   // C = A · B
 
 ---
 
+## Exemplos por operação
+
+### `slice` — fatiar submatriz
+
+```c
+// A: 5×5, extrai bloco das linhas 1-3 e colunas 2-4
+cmatrix_float* A   = new_cmatrix_float(5, 5);
+cmatrix_float* sub = new_cmatrix_float(3, 3);
+
+cM(A, fill_rand, 1, 9, 1);
+cM(sub, slice, A, 1, 3, 2, 4);  // sub = A[1:3, 2:4]
+cM(sub, print);
+
+cM(A, free); cM(sub, free);
+```
+
+### `diag` — comportamento duplo
+
+```c
+// extraindo diagonal de uma matriz quadrada
+cmatrix_float* A = new_cmatrix_float(3, 3);
+cmatrix_float* D = new_cmatrix_float(3, 3);
+cM(A, fill_rand, 1, 9, 1);
+cM(D, diag, A);   // D = diag(a₁₁, a₂₂, a₃₃)
+
+// montando matriz diagonal a partir de um vetor coluna
+cmatrix_float* v  = new_cmatrix_float(3, 1);
+cmatrix_float* D2 = new_cmatrix_float(3, 3);
+cM(v, fill_rand, 1, 9, 1);
+cM(D2, diag, v);  // D2 = diag(v[0], v[1], v[2])
+
+cM(A, free); cM(D, free); cM(v, free); cM(D2, free);
+```
+
+### `hstack` — concatenação horizontal
+
+```c
+// A: 3×2, B: 3×4  →  C: 3×6
+cmatrix_float* A = new_cmatrix_float(3, 2);
+cmatrix_float* B = new_cmatrix_float(3, 4);
+cmatrix_float* C = new_cmatrix_float(3, 2);  // dimensões iniciais não importam
+
+cM(A, fill_rand, 1, 5, 1);
+cM(B, fill_rand, 1, 5, 1);
+cM(C, hstack, A, B);   // C = [A | B]
+cM(C, print);
+
+cM(A, free); cM(B, free); cM(C, free);
+```
+
+### `pow` — potência de matriz
+
+```c
+cmatrix_float* A = new_cmatrix_float(3, 3);
+cmatrix_float* B = new_cmatrix_float(3, 3);
+
+cM(A, fill_rand, 1, 5, 1);
+
+cM(B, pow, A, 3);   // B = A³
+cM(B, print);
+
+cM(B, pow, A, 0);   // B = I  (n=0 sempre retorna identidade)
+cM(B, print);
+
+cM(A, free); cM(B, free);
+```
+
+### `rref` e `inv`
+
+```c
+cmatrix_float* A    = new_cmatrix_float(3, 3);
+cmatrix_float* R    = new_cmatrix_float(3, 3);
+cmatrix_float* Ainv = new_cmatrix_float(3, 3);
+
+cM(A, fill_rand, 1, 9, 1);
+
+cM(R, rref, A);
+printf("RREF(A):\n"); cM(R, print);
+
+cmatrix_error err = cM(Ainv, inv, A);
+if (err == CMATRIX_SINGULAR_MATRIX)
+    printf("A nao e invertivel\n");
+else {
+    printf("A^-1:\n"); cM(Ainv, print);
+    printf("det(A) = %.4f\n", cM(A, det));
+}
+
+cM(A, free); cM(R, free); cM(Ainv, free);
+```
+
+### `apply` — aplicar função elemento a elemento
+
+```c
+typedef struct { float a, b; } Params;
+
+float linear(float x, void* p) {
+    Params* ps = (Params*)p;
+    return ps->a * x + ps->b;
+}
+
+cmatrix_float* A = new_cmatrix_float(3, 3);
+cM(A, fill_rand, 1, 9, 1);
+
+Params ps = {2.0f, 1.0f};
+cM(A, apply, linear, &ps);   // aᵢⱼ ← 2*aᵢⱼ + 1
+cM(A, print);
+
+cM(A, free);
+```
+
+### `atLeast` — verificar se todos os elementos satisfazem um limiar
+
+```c
+// retorna int (não cmatrix_error): 1 se todos aᵢⱼ >= v, 0 caso contrário
+cmatrix_float* x = new_cmatrix_float(3, 1);
+cM(x, fill_rand, -5, 5, 1);
+
+if (cM(x, atLeast, 0))
+    printf("x é não-negativo (solução básica viável)\n");
+else
+    printf("x tem componentes negativas\n");
+
+cM(x, free);
+```
+
+---
+
 ## Tratamento de erros
 
 Todas as funções que retornam `void` foram convertidas para retornar `cmatrix_error`:
