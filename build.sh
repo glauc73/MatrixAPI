@@ -1,6 +1,6 @@
 #!/bin/bash
 
-gcc -std=c11 $1 -Iinclude -lm -o main
+gcc -std=c11 -g $1 -Iinclude -lm -o main
 
 if [ $? -ne 0 ]; then
     echo "Erro: compilacao falhou."
