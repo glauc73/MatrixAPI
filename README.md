@@ -11,7 +11,7 @@ gcc -std=c11 meu_programa.c -Iinclude -lm -o meu_programa
 ## Estrutura de arquivos
 
 ```
-cmatrix/
+cmatrix/agora
 ├── include/
 │   ├── genericsBase.h    # infraestrutura de tipos genéricos e macros base
 │   ├── genericMatrix.h   # implementação do TAD e de todas as funções
@@ -385,7 +385,7 @@ fim:
 
 ```bash
 gcc -std=c11 example.c -Iinclude -lm -o main
-echo "0\n5 8\n1 0 1 0 0 0 0 40\n0 1 0 1 0 0 0 60\n3 2 0 0 1 0 0 180\n0 1 0 0 0 -1 0 10\n1 1 0 0 0 0 -1 20" | ./main
+./main
 ```
 
 ---
