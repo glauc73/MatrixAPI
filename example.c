@@ -50,7 +50,9 @@ float diag_mult(cmatrix_float* A){
 
 int main(){
     size_t m, n;
-    scanf("%zu %zu", &m, &n);
+    int vbn;
+    scanf("%d", &vbn);
+    scanf(" %zu %zu", &m, &n);
     cmatrix_float* Ab = get_cmatrix_float(m, n); 
     --n;
     cmatrix_float* b = new_cmatrix_float(Ab->rows, 1);
@@ -63,32 +65,32 @@ int main(){
     }
 
     int n_combs = comb(n, m);
-    int64_t masks[n_combs];
-    masks[0] = (1 << m) - 1;
-    for(int i = 1; i < n_combs; i++){
-        masks[i] = next_combination(masks[i - 1]);
-    }
+    int64_t mask = (1 << m) - 1;
 
     cmatrix_float* Bb = new_cmatrix_float(m, m + 1);
-    cmatrix_float* x = new_cmatrix_float(m, 1);
+    cmatrix_float* x = new_cmatrix_float(n, 1);
     int cntbasics = 0;
     for(int i = 0; i < n_combs; i++){
         cM(Bb, setCol, b, m);
-        int64_t state = masks[i];
         int cnt = 0;
         for(int j = 0; j < n; j++){
-            if((state >> j) & 1)    
+            if((mask >> j) & 1)    
                 cM(Bb, setCol, v[j], cnt++);
         }
 
         cM(Bb, rref, Bb);
         if(fabs(diag_mult(Bb)) > 1e-6){
-            cM(x, getCol, Bb, m);
-            if(cM(x, atLeast, 0)){
+            int top = 0;
+            for(int j = 0; j < n; j++){
+                x->data[j] = ((mask >> j) & 1) ? Bb->data[top*Bb->cols + m] : 0;
+                top += (mask >> j) & 1;
+            }
+            if((cM(x, atLeast, 0) && vbn) || !vbn){
                 cM(x, print);
                 cntbasics++;
             }
         }
+        mask = next_combination(mask);
     }
     printf("%d\n", cntbasics);
     cM(Ab, free);
